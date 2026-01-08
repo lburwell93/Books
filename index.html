@@ -3,66 +3,984 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Boss Quest Reading Tracker</title>
-    <link rel="stylesheet" href="styles.css" />
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rajdhani:wght@400;600&display=swap"
-      rel="stylesheet"
-    />
+    <title>The Boss Reader</title>
+    <style>
+      :root {
+        color-scheme: dark;
+        --bg: #0a0a0a;
+        --panel: #141414;
+        --panel-2: #1d1d1d;
+        --text: #f4f4f4;
+        --muted: #9c9c9c;
+        --active: #ff3333;
+        --victory: #ffd700;
+        --queued: #3aa0ff;
+        --shadow: rgba(0, 0, 0, 0.6);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        font-family: "Orbitron", "Segoe UI", system-ui, -apple-system, sans-serif;
+        background: radial-gradient(circle at top, rgba(255, 51, 51, 0.15), transparent 55%),
+          var(--bg);
+        color: var(--text);
+        min-height: 100vh;
+      }
+
+      .page {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 32px 20px 80px;
+      }
+
+      header {
+        display: grid;
+        gap: 20px;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        align-items: center;
+        margin-bottom: 32px;
+      }
+
+      .title-block {
+        background: linear-gradient(135deg, rgba(255, 51, 51, 0.2), transparent 60%);
+        padding: 24px;
+        border: 1px solid rgba(255, 51, 51, 0.4);
+        border-radius: 16px;
+        box-shadow: 0 0 20px rgba(255, 51, 51, 0.1);
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        font-size: 12px;
+        letter-spacing: 2px;
+        color: var(--active);
+        margin: 0 0 8px;
+      }
+
+      h1 {
+        margin: 0 0 12px;
+        font-size: clamp(28px, 4vw, 42px);
+      }
+
+      .subhead {
+        margin: 0;
+        color: var(--muted);
+        line-height: 1.5;
+      }
+
+      .stats-panel {
+        background: var(--panel);
+        padding: 24px;
+        border-radius: 16px;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 20px 40px var(--shadow);
+      }
+
+      .stats-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        margin-bottom: 12px;
+      }
+
+      .stats-header strong {
+        color: var(--victory);
+        font-size: 20px;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 10px;
+        background: #252525;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .progress-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--active), var(--victory));
+        width: 0%;
+        transition: width 0.4s ease;
+      }
+
+      .progress-note {
+        margin-top: 12px;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        gap: 18px;
+      }
+
+      .boss-card {
+        position: relative;
+        min-height: 220px;
+        background: var(--panel-2);
+        border-radius: 16px;
+        padding: 12px;
+        border: 2px solid transparent;
+        cursor: pointer;
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        transition: transform 0.2s ease, box-shadow 0.2s ease;
+      }
+
+      .boss-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+      }
+
+      .boss-card.locked {
+        background: #0f0f0f;
+        border-color: #1b1b1b;
+        cursor: default;
+      }
+
+      .boss-card.active {
+        border-color: var(--active);
+        box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
+        animation: pulse 2s infinite;
+      }
+
+      .boss-card.queued {
+        border-color: var(--queued);
+        filter: grayscale(0.6);
+        opacity: 0.8;
+      }
+
+      .boss-card.defeated {
+        border-color: var(--victory);
+        filter: grayscale(1);
+      }
+
+      .boss-card.defeated::after {
+        content: "DEFEATED";
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        font-size: 24px;
+        letter-spacing: 4px;
+        color: rgba(255, 215, 0, 0.85);
+        text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+        background: rgba(0, 0, 0, 0.4);
+        transform: rotate(-10deg);
+      }
+
+      .boss-card.defeated::before {
+        content: "";
+        position: absolute;
+        inset: -100% 0;
+        background: linear-gradient(120deg, transparent, rgba(255, 255, 255, 0.4), transparent);
+        animation: shimmer 2.8s linear infinite;
+        mix-blend-mode: screen;
+      }
+
+      .boss-card .boss-image {
+        position: absolute;
+        inset: 0;
+        background-size: cover;
+        background-position: center;
+        opacity: 0.9;
+      }
+
+      .boss-card .boss-content {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .boss-title {
+        font-size: 14px;
+        line-height: 1.2;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        text-shadow: 0 0 8px rgba(0, 0, 0, 0.7);
+      }
+
+      .mini-health {
+        height: 8px;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        overflow: hidden;
+      }
+
+      .mini-health span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--active), #ff6a6a);
+      }
+
+      .status-tag {
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        color: var(--muted);
+      }
+
+      .locked-layer {
+        position: absolute;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        color: rgba(255, 255, 255, 0.25);
+        font-size: 52px;
+        background: repeating-linear-gradient(135deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.05) 2px, transparent 2px, transparent 6px);
+      }
+
+      .locked-layer::before {
+        content: "";
+        position: absolute;
+        width: 100px;
+        height: 140px;
+        border-radius: 50% 50% 40% 40%;
+        background: rgba(255, 255, 255, 0.08);
+        filter: blur(2px);
+        transform: translateY(10px);
+      }
+
+      .boss-card.locked:hover .locked-layer {
+        animation: glitch 0.6s steps(2) infinite;
+      }
+
+      @keyframes pulse {
+        0% {
+          box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
+        }
+        50% {
+          box-shadow: 0 0 24px rgba(255, 51, 51, 0.8);
+        }
+        100% {
+          box-shadow: 0 0 12px rgba(255, 51, 51, 0.4);
+        }
+      }
+
+      @keyframes glitch {
+        0% {
+          transform: translate(0, 0) skew(0deg);
+        }
+        20% {
+          transform: translate(-2px, 2px) skew(-2deg);
+        }
+        40% {
+          transform: translate(2px, -2px) skew(2deg);
+        }
+        60% {
+          transform: translate(-2px, 0) skew(-1deg);
+        }
+        80% {
+          transform: translate(2px, 2px) skew(1deg);
+        }
+        100% {
+          transform: translate(0, 0) skew(0deg);
+        }
+      }
+
+      @keyframes shimmer {
+        0% {
+          transform: translateX(-120%);
+        }
+        100% {
+          transform: translateX(120%);
+        }
+      }
+
+      .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.75);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        z-index: 1000;
+      }
+
+      .modal.active {
+        display: flex;
+      }
+
+      .modal-content {
+        background: #101010;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 20px;
+        padding: 24px;
+        max-width: 540px;
+        width: 100%;
+        box-shadow: 0 30px 60px rgba(0, 0, 0, 0.6);
+        position: relative;
+      }
+
+      .modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .modal-header h3 {
+        margin: 0;
+      }
+
+      .modal-close {
+        background: transparent;
+        border: none;
+        color: var(--muted);
+        font-size: 22px;
+        cursor: pointer;
+      }
+
+      .boss-portrait {
+        width: 100%;
+        height: 220px;
+        border-radius: 16px;
+        background-size: cover;
+        background-position: center;
+        margin: 16px 0;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .health-bar {
+        height: 16px;
+        background: #212121;
+        border-radius: 999px;
+        overflow: hidden;
+        margin: 8px 0 4px;
+      }
+
+      .health-bar span {
+        display: block;
+        height: 100%;
+        background: linear-gradient(90deg, var(--active), #ff6a6a);
+        transition: width 0.3s ease;
+      }
+
+      .health-text {
+        font-size: 13px;
+        color: var(--muted);
+        margin-bottom: 12px;
+      }
+
+      .input-row {
+        display: flex;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .input-row input {
+        flex: 1;
+        background: #1b1b1b;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        color: var(--text);
+        padding: 10px 12px;
+        border-radius: 10px;
+      }
+
+      .btn {
+        background: var(--active);
+        border: none;
+        color: #fff;
+        padding: 10px 18px;
+        border-radius: 10px;
+        font-weight: 600;
+        cursor: pointer;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+      }
+
+      .damage-float {
+        position: absolute;
+        right: 32px;
+        top: 30%;
+        font-size: 32px;
+        color: var(--active);
+        opacity: 0;
+        animation: floatDamage 1s ease;
+        pointer-events: none;
+      }
+
+      @keyframes floatDamage {
+        0% {
+          transform: translateY(20px);
+          opacity: 0;
+        }
+        30% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-40px);
+          opacity: 0;
+        }
+      }
+
+      .shake {
+        animation: screenShake 0.4s ease;
+      }
+
+      @keyframes screenShake {
+        0% {
+          transform: translate(0, 0);
+        }
+        25% {
+          transform: translate(4px, -4px);
+        }
+        50% {
+          transform: translate(-4px, 4px);
+        }
+        75% {
+          transform: translate(4px, 4px);
+        }
+        100% {
+          transform: translate(0, 0);
+        }
+      }
+
+      .archive-details {
+        display: grid;
+        gap: 10px;
+        margin-bottom: 16px;
+      }
+
+      .archive-details span {
+        color: var(--muted);
+        font-size: 13px;
+      }
+
+      .rating-block {
+        margin: 12px 0;
+      }
+
+      .star-meter {
+        position: relative;
+        width: 220px;
+        font-size: 26px;
+        cursor: pointer;
+        line-height: 1;
+      }
+
+      .star-meter .stars-back,
+      .star-meter .stars-front {
+        letter-spacing: 4px;
+        font-family: "Segoe UI", sans-serif;
+      }
+
+      .star-meter .stars-back {
+        color: #3a3a3a;
+      }
+
+      .star-meter .stars-front {
+        color: var(--victory);
+        position: absolute;
+        top: 0;
+        left: 0;
+        white-space: nowrap;
+        overflow: hidden;
+        width: 0%;
+        pointer-events: none;
+      }
+
+      textarea {
+        width: 100%;
+        background: #1b1b1b;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 10px;
+        padding: 10px;
+        color: var(--text);
+        min-height: 100px;
+      }
+
+      .toast {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: rgba(255, 215, 0, 0.95);
+        color: #111;
+        padding: 12px 20px;
+        border-radius: 12px;
+        font-weight: 700;
+        box-shadow: 0 12px 24px rgba(0, 0, 0, 0.4);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: all 0.3s ease;
+        z-index: 1100;
+      }
+
+      .toast.show {
+        opacity: 1;
+        transform: translateY(0);
+      }
+
+      .section-title {
+        margin: 24px 0 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 12px;
+      }
+
+      .section-title h2 {
+        margin: 0;
+        font-size: 20px;
+      }
+
+      .section-title p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 14px;
+      }
+
+      @media (max-width: 600px) {
+        .section-title {
+          flex-direction: column;
+          align-items: flex-start;
+        }
+
+        .boss-card {
+          min-height: 200px;
+        }
+      }
+    </style>
   </head>
   <body>
-    <div class="page">
-      <header class="hero">
-        <div>
-          <p class="eyebrow">2024 Reading Quest</p>
-          <h1>Defeat 25 Bosses</h1>
+    <div class="page" id="page">
+      <header>
+        <div class="title-block">
+          <p class="eyebrow">The Boss Reader</p>
+          <h1>Gamified Book Tracker</h1>
           <p class="subhead">
-            Every book is a boss battle. Finish them all to clear the year.
+            Every page is damage. Every boss is a book. Keep grinding until the final victory.
           </p>
         </div>
-        <div class="progress-panel">
-          <div class="progress-header">
+        <div class="stats-panel">
+          <div class="stats-header">
             <span>Bosses defeated</span>
             <strong id="boss-count">0 / 25</strong>
           </div>
-          <div class="progress-bar">
-            <span id="progress-fill"></span>
-          </div>
-          <p class="progress-note" id="progress-note">
-            Next boss encounter loading...
-          </p>
+          <div class="progress-bar"><span id="progress-fill"></span></div>
+          <p class="progress-note" id="progress-note">Next boss encounter loading...</p>
         </div>
       </header>
 
       <main>
-        <section>
-          <div class="section-title">
-            <h2>Current Boss Fight</h2>
-            <p>Stay locked in. The current boss reveals live stats.</p>
-          </div>
-          <div class="boss-grid" id="current-boss"></div>
-        </section>
-
-        <section>
-          <div class="section-title">
-            <h2>Defeated Bosses</h2>
-            <p>Click a defeated boss to reveal your win summary.</p>
-          </div>
-          <div class="boss-grid" id="defeated-bosses"></div>
-        </section>
-
-        <section>
-          <div class="section-title">
-            <h2>Unrevealed Boss Slots</h2>
-            <p>These foes are still hidden. Reveal them when you begin.</p>
-          </div>
-          <div class="boss-grid" id="mystery-bosses"></div>
-        </section>
+        <div class="section-title">
+          <h2>Boss Arena Grid</h2>
+          <p>Click active bosses to battle. Click defeated bosses for mission reports.</p>
+        </div>
+        <div class="grid" id="boss-grid"></div>
       </main>
     </div>
 
-    <script src="script.js"></script>
+    <div class="modal" id="battle-modal" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="battle-title">Boss Fight</h3>
+          <button class="modal-close" type="button" data-close="battle-modal">×</button>
+        </div>
+        <div class="boss-portrait" id="battle-image"></div>
+        <div class="health-bar"><span id="battle-health-fill"></span></div>
+        <div class="health-text" id="battle-health-text"></div>
+        <div class="input-row">
+          <input type="number" id="page-input" min="0" placeholder="Enter current page" />
+          <button class="btn" id="attack-btn" type="button">Deal Damage</button>
+        </div>
+        <p class="health-text">1 page read = 1 HP damage.</p>
+        <div class="damage-float" id="damage-float"></div>
+      </div>
+    </div>
+
+    <div class="modal" id="archive-modal" aria-hidden="true">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h3 id="archive-title">Mission Report</h3>
+          <button class="modal-close" type="button" data-close="archive-modal">×</button>
+        </div>
+        <div class="boss-portrait" id="archive-image"></div>
+        <div class="archive-details" id="archive-details"></div>
+        <div class="rating-block">
+          <p>Campaign Rating</p>
+          <div class="star-meter" id="star-meter" role="slider" aria-valuemin="0" aria-valuemax="5" tabindex="0">
+            <div class="stars-back">★★★★★</div>
+            <div class="stars-front" id="stars-front">★★★★★</div>
+          </div>
+          <p class="health-text" id="rating-text">Rating: 0 / 5</p>
+        </div>
+        <label>
+          <span class="health-text">Loot Drops (notes/quotes)</span>
+          <textarea id="loot-notes" placeholder="Drop your quotes, loot, and reflections..."></textarea>
+        </label>
+      </div>
+    </div>
+
+    <div class="toast" id="toast">Victory! Boss defeated.</div>
+
+    <script>
+      const STORAGE_KEY = "bossReaderData";
+      const gridEl = document.getElementById("boss-grid");
+      const bossCountEl = document.getElementById("boss-count");
+      const progressFill = document.getElementById("progress-fill");
+      const progressNote = document.getElementById("progress-note");
+      const pageWrapper = document.getElementById("page");
+
+      const battleModal = document.getElementById("battle-modal");
+      const battleTitle = document.getElementById("battle-title");
+      const battleImage = document.getElementById("battle-image");
+      const battleHealthFill = document.getElementById("battle-health-fill");
+      const battleHealthText = document.getElementById("battle-health-text");
+      const pageInput = document.getElementById("page-input");
+      const attackBtn = document.getElementById("attack-btn");
+      const damageFloat = document.getElementById("damage-float");
+
+      const archiveModal = document.getElementById("archive-modal");
+      const archiveTitle = document.getElementById("archive-title");
+      const archiveImage = document.getElementById("archive-image");
+      const archiveDetails = document.getElementById("archive-details");
+      const starMeter = document.getElementById("star-meter");
+      const starsFront = document.getElementById("stars-front");
+      const ratingText = document.getElementById("rating-text");
+      const lootNotes = document.getElementById("loot-notes");
+      const toast = document.getElementById("toast");
+
+      let bosses = [];
+      let activeBossId = null;
+      let archiveBossId = null;
+
+      const defaultBosses = Array.from({ length: 25 }, (_, index) => {
+        const id = index + 1;
+        const status = id === 1 ? "active" : id === 2 || id === 3 ? "queued" : id === 4 ? "defeated" : "locked";
+        const totalPages = 280 + index * 8;
+        const currentPage = status === "defeated" ? totalPages : status === "active" ? 80 : 0;
+        return {
+          id: `boss-${id.toString().padStart(2, "0")}`,
+          title: `Boss ${id}: ${[
+            "Neon Hydra",
+            "Pixel Behemoth",
+            "Crimson Circuit",
+            "Gold Warden",
+            "Void Siren",
+            "Obsidian Titan",
+            "Cobalt Specter",
+            "Glass Colossus",
+            "Retro Rogue",
+            "Ion Reaper",
+            "Arcane Rift",
+            "Static Marauder",
+            "Hollow Knight",
+            "Synth Basilisk",
+            "Warp Hunter",
+            "Nova Goliath",
+            "Phantom Byte",
+            "Feral Drifter",
+            "Echo Empress",
+            "Storm Herald",
+            "Glitch Baron",
+            "Signal Viper",
+            "Iron Diva",
+            "Midnight Revenant",
+            "Final Boss",
+          ][index]}`,
+          status,
+          totalPages,
+          currentPage,
+          image: createBossSvg(id),
+          startDate: status === "defeated" ? daysAgo(18) : status === "active" ? daysAgo(2) : null,
+          endDate: status === "defeated" ? daysAgo(4) : null,
+          rating: status === "defeated" ? 4.5 : 0,
+          notes: "",
+        };
+      });
+
+      function createBossSvg(seed) {
+        const hue = (seed * 35) % 360;
+        const svg = `
+          <svg xmlns="http://www.w3.org/2000/svg" width="400" height="400">
+            <defs>
+              <linearGradient id="grad" x1="0" x2="1" y1="0" y2="1">
+                <stop offset="0%" stop-color="hsl(${hue},80%,40%)" />
+                <stop offset="100%" stop-color="hsl(${(hue + 80) % 360},80%,25%)" />
+              </linearGradient>
+            </defs>
+            <rect width="400" height="400" fill="url(#grad)" />
+            <circle cx="200" cy="180" r="110" fill="rgba(0,0,0,0.45)" />
+            <path d="M120 280 L200 120 L280 280 Z" fill="rgba(255,255,255,0.35)" />
+            <circle cx="160" cy="180" r="18" fill="rgba(255,255,255,0.6)" />
+            <circle cx="240" cy="180" r="18" fill="rgba(255,255,255,0.6)" />
+          </svg>`;
+        return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+      }
+
+      function daysAgo(days) {
+        const date = new Date();
+        date.setDate(date.getDate() - days);
+        return date.toISOString();
+      }
+
+      function smartMerge(defaults, saved) {
+        if (!Array.isArray(saved)) {
+          return defaults;
+        }
+        const savedMap = new Map(saved.map((boss) => [boss.id, boss]));
+        const merged = defaults.map((boss) => ({ ...boss, ...(savedMap.get(boss.id) || {}) }));
+        saved.forEach((boss) => {
+          if (!merged.find((item) => item.id === boss.id)) {
+            merged.push(boss);
+          }
+        });
+        return merged;
+      }
+
+      function loadData() {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        const parsed = stored ? JSON.parse(stored) : [];
+        bosses = smartMerge(defaultBosses, parsed);
+      }
+
+      function saveData() {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(bosses));
+      }
+
+      function formatDate(dateString) {
+        if (!dateString) {
+          return "--";
+        }
+        const date = new Date(dateString);
+        return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+      }
+
+      function campaignDuration(start, end) {
+        if (!start || !end) {
+          return "--";
+        }
+        const startDate = new Date(start);
+        const endDate = new Date(end);
+        const diffTime = Math.max(endDate - startDate, 0);
+        const days = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+        return `${days} day${days === 1 ? "" : "s"}`;
+      }
+
+      function updateStats() {
+        const defeated = bosses.filter((boss) => boss.status === "defeated").length;
+        bossCountEl.textContent = `${defeated} / 25`;
+        progressFill.style.width = `${(defeated / 25) * 100}%`;
+        const nextActive = bosses.find((boss) => boss.status === "active");
+        progressNote.textContent = nextActive
+          ? `Current battle: ${nextActive.title}`
+          : "No active battle. Queue a new boss!";
+      }
+
+      function renderGrid() {
+        gridEl.innerHTML = "";
+        bosses.forEach((boss) => {
+          const card = document.createElement("div");
+          card.className = `boss-card ${boss.status}`;
+          card.dataset.id = boss.id;
+
+          if (boss.status !== "locked") {
+            const imageLayer = document.createElement("div");
+            imageLayer.className = "boss-image";
+            imageLayer.style.backgroundImage = `url('${boss.image}')`;
+            card.appendChild(imageLayer);
+          }
+
+          const content = document.createElement("div");
+          content.className = "boss-content";
+
+          if (boss.status === "locked") {
+            const lockedLayer = document.createElement("div");
+            lockedLayer.className = "locked-layer";
+            lockedLayer.textContent = "?";
+            card.appendChild(lockedLayer);
+          }
+
+          const statusTag = document.createElement("span");
+          statusTag.className = "status-tag";
+          statusTag.textContent = boss.status;
+
+          const title = document.createElement("div");
+          title.className = "boss-title";
+          title.textContent = boss.title;
+
+          content.appendChild(statusTag);
+          content.appendChild(title);
+
+          if (boss.status === "active") {
+            const miniHealth = document.createElement("div");
+            miniHealth.className = "mini-health";
+            const bar = document.createElement("span");
+            bar.style.width = `${(boss.currentPage / boss.totalPages) * 100}%`;
+            miniHealth.appendChild(bar);
+            content.appendChild(miniHealth);
+          }
+
+          card.appendChild(content);
+          gridEl.appendChild(card);
+        });
+        updateStats();
+      }
+
+      function openBattleModal(boss) {
+        activeBossId = boss.id;
+        battleTitle.textContent = boss.title;
+        battleImage.style.backgroundImage = `url('${boss.image}')`;
+        updateBattleHealth(boss);
+        pageInput.value = boss.currentPage;
+        battleModal.classList.add("active");
+        battleModal.setAttribute("aria-hidden", "false");
+      }
+
+      function updateBattleHealth(boss) {
+        const percent = Math.min((boss.currentPage / boss.totalPages) * 100, 100);
+        battleHealthFill.style.width = `${percent}%`;
+        battleHealthText.textContent = `${boss.currentPage} / ${boss.totalPages} pages read`;
+      }
+
+      function showDamage(amount) {
+        damageFloat.textContent = `-${amount}`;
+        damageFloat.classList.remove("animate");
+        void damageFloat.offsetWidth;
+        damageFloat.style.animation = "none";
+        void damageFloat.offsetWidth;
+        damageFloat.style.animation = "floatDamage 1s ease";
+      }
+
+      function triggerShake() {
+        pageWrapper.classList.remove("shake");
+        void pageWrapper.offsetWidth;
+        pageWrapper.classList.add("shake");
+      }
+
+      function showToast(message) {
+        toast.textContent = message;
+        toast.classList.add("show");
+        setTimeout(() => toast.classList.remove("show"), 2600);
+      }
+
+      function openArchiveModal(boss) {
+        archiveBossId = boss.id;
+        archiveTitle.textContent = `${boss.title} - Archive`;
+        archiveImage.style.backgroundImage = `url('${boss.image}')`;
+        const details = [
+          `<strong>Start Date</strong><span>${formatDate(boss.startDate)}</span>`,
+          `<strong>End Date</strong><span>${formatDate(boss.endDate)}</span>`,
+          `<strong>Campaign Duration</strong><span>${campaignDuration(boss.startDate, boss.endDate)}</span>`,
+        ];
+        archiveDetails.innerHTML = details
+          .map((item) => `<div style="display:flex; justify-content:space-between;">${item}</div>`)
+          .join("");
+        setRating(boss.rating || 0);
+        lootNotes.value = boss.notes || "";
+        archiveModal.classList.add("active");
+        archiveModal.setAttribute("aria-hidden", "false");
+      }
+
+      function setRating(value) {
+        const clamped = Math.min(Math.max(value, 0), 5);
+        const percent = (clamped / 5) * 100;
+        starsFront.style.width = `${percent}%`;
+        ratingText.textContent = `Rating: ${clamped} / 5`;
+        starMeter.setAttribute("aria-valuenow", clamped);
+      }
+
+      function handleCardClick(event) {
+        const card = event.target.closest(".boss-card");
+        if (!card) return;
+        const boss = bosses.find((item) => item.id === card.dataset.id);
+        if (!boss) return;
+        if (boss.status === "active") {
+          openBattleModal(boss);
+        } else if (boss.status === "defeated") {
+          openArchiveModal(boss);
+        }
+      }
+
+      function closeModal(id) {
+        const modal = document.getElementById(id);
+        modal.classList.remove("active");
+        modal.setAttribute("aria-hidden", "true");
+        activeBossId = null;
+        archiveBossId = null;
+      }
+
+      function handleAttack() {
+        const boss = bosses.find((item) => item.id === activeBossId);
+        if (!boss) return;
+        const newPage = Number(pageInput.value);
+        if (Number.isNaN(newPage) || newPage <= boss.currentPage) {
+          showToast("Enter a higher page number to deal damage.");
+          return;
+        }
+        const damage = Math.min(newPage, boss.totalPages) - boss.currentPage;
+        boss.currentPage = Math.min(newPage, boss.totalPages);
+        if (!boss.startDate) {
+          boss.startDate = new Date().toISOString();
+        }
+        triggerShake();
+        showDamage(damage);
+        if (boss.currentPage >= boss.totalPages) {
+          boss.status = "defeated";
+          boss.endDate = new Date().toISOString();
+          showToast("Victory! Boss defeated.");
+          closeModal("battle-modal");
+        }
+        saveData();
+        renderGrid();
+        if (boss.status === "active") {
+          updateBattleHealth(boss);
+        }
+      }
+
+      function handleStarClick(event) {
+        if (!archiveBossId) return;
+        const rect = starMeter.getBoundingClientRect();
+        const x = Math.min(Math.max(event.clientX - rect.left, 0), rect.width);
+        const raw = (x / rect.width) * 5;
+        const rating = Math.round(raw * 2) / 2;
+        setRating(rating);
+        const boss = bosses.find((item) => item.id === archiveBossId);
+        if (boss) {
+          boss.rating = rating;
+          saveData();
+        }
+      }
+
+      function handleNotesInput() {
+        const boss = bosses.find((item) => item.id === archiveBossId);
+        if (boss) {
+          boss.notes = lootNotes.value;
+          saveData();
+        }
+      }
+
+      gridEl.addEventListener("click", handleCardClick);
+      attackBtn.addEventListener("click", handleAttack);
+      starMeter.addEventListener("click", handleStarClick);
+      lootNotes.addEventListener("input", handleNotesInput);
+
+      document.querySelectorAll("[data-close]").forEach((btn) => {
+        btn.addEventListener("click", (event) => closeModal(event.currentTarget.dataset.close));
+      });
+
+      window.addEventListener("keydown", (event) => {
+        if (event.key === "Escape") {
+          closeModal("battle-modal");
+          closeModal("archive-modal");
+        }
+      });
+
+      loadData();
+      renderGrid();
+    </script>
   </body>
 </html>
